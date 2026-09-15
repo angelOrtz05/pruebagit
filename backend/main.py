@@ -1,36 +1,86 @@
-import psycopg2
-from dotenv import load_dotenv
+# ============================================================
+# Backend de práctica: Renta de Bicicletas
+# FastAPI + PostgreSQL (psycopg2)
+# ============================================================
+
+# ---- Imports estándar de Python ----
 import os
 
-load_dotenv()
-from fastapi import FastAPI
+# ---- Imports de librerías externas ----
+import psycopg2
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from typing import List
 
-app = FastAPI()
+# ---- Carga de variables de entorno (.env) ----
+load_dotenv()
+
+# ---- Instancia principal de la app ----
+app = FastAPI(title="API de Renta de Bicicletas")
+
+
+# ============================================================
+# CONEXIÓN A LA BASE DE DATOS
+# ============================================================
 
 def obtener_conexion():
+    """Abre y regresa una nueva conexión a PostgreSQL."""
     return psycopg2.connect(
         host="localhost",
         database="bicicletas_practica",
         user="postgres",
         password=os.getenv("DB_PASSWORD")
     )
-@app.get("/")
 
+
+# ============================================================
+# MODELOS (Pydantic) — la "forma" de los datos que se reciben
+# ============================================================
+
+class RentaNueva(BaseModel):
+    id_cliente: int
+    duracion_pagada: str
+    bicicletas: List[int]
+
+
+class BiciNueva(BaseModel):
+    tipo: str
+    contador_uso: int = 0
+    estado: str = "Disponible"
+
+
+# ============================================================
+# RUTAS — RAÍZ
+# ============================================================
+
+@app.get("/")
 def inicio():
     return {"mensaje": "Hola, funciona"}
 
-@app.get("/bicicletas/{id_bici}")
 
+# ============================================================
+# RUTAS — BICICLETAS
+# ============================================================
+
+@app.get("/bicicletas/{id_bici}")
 def obtener_bici(id_bici: int):
-    conexion = obtener_conexion() 
+    """Devuelve los datos de una bicicleta específica por su ID."""
+    conexion = obtener_conexion()
     cursor = conexion.cursor()
-    cursor.execute("SELECT id_bici, tipo, contador_uso, estado FROM bicicletas WHERE id_bici = %s", (id_bici,))
-    resultado = cursor.fetchone()
-    cursor.close()
-    conexion.close()
+    try:
+        cursor.execute(
+            "SELECT id_bici, tipo, contador_uso, estado "
+            "FROM bicicletas WHERE id_bici = %s",
+            (id_bici,)
+        )
+        resultado = cursor.fetchone()
+    finally:
+        cursor.close()
+        conexion.close()
 
     if resultado is None:
-        return {"error": "Bicicleta no encontrada"}
+        raise HTTPException(status_code=404, detail="Bicicleta no encontrada")
 
     return {
         "id_bici": resultado[0],
@@ -39,99 +89,96 @@ def obtener_bici(id_bici: int):
         "estado": resultado[3]
     }
 
-from pydantic import BaseModel
-from typing import List
-
-class RentaNueva(BaseModel):
-    id_cliente: int
-    duracion_pagada: str
-    bicicletas: List[int]
-
-@app.post("/rentas")
-def crear_renta(renta: RentaNueva):
-    conexion = obtener_conexion()         # función que ya escribiste antes
-    cursor = conexion.cursor()     # cómo abrías un cursor
-
-    # 1. Insertar en `rentas`, y pedir que te devuelva el id_renta generado
-    cursor.execute(
-        "INSERT INTO rentas (id_cliente, duracion_pagada) VALUES (%s, %s) RETURNING id_renta",
-        (renta.id_cliente, renta.duracion_pagada)   # ¿de dónde sacas estos dos valores? (pista: vienen del objeto `renta`)
-    )
-    id_renta = cursor.fetchone()[0]   # ¿qué función lees UNA fila de resultado?
-
-    # 2. Insertar una fila en `cuenta` por cada bici de la lista
-    for elemento in renta.bicicletas:     # nombra la variable del ciclo
-        cursor.execute(
-            "INSERT INTO cuenta (id_renta, id_bici) VALUES (%s, %s)",
-            (id_renta,elemento)
-        )
-
-    # 3. Guardar los cambios de forma permanente
-    conexion.commit()
-
-    # 4. Cerrar cursor y conexión
-    cursor.close()
-    conexion.close()
-
-    # 5. Regresar una confirmación (puedes incluir el id_renta generado)
-    return {"mensaje": "Se creo con exito la nueva renta: ",
-            "ID Renta: ": id_renta}
-
-@app.put("/bicicletas/{id_bici}")
-def aumentar_contador(id_bici: int):
-    conexion = obtener_conexion()
-    cursor = conexion.cursor()
-
-    cursor.execute(
-        "UPDATE bicicletas SET contador_uso = contador_uso + 1 WHERE id_bici = %s",
-        (id_bici,)
-    )
-    conexion.commit()
-    cursor.close()
-    conexion.close()
-
-    return {"Mensaje" : "Contador aumentado con exito"}
-
-@app.delete("/bicicletas/{id_bici}")
-def eliminar_bici(id_bici : int):
-    conexion= obtener_conexion()
-    cursor = conexion.cursor()
-
-    cursor.execute(
-        "DELETE FROM bicicletas WHERE id_bici=%s",
-        (id_bici,)
-    )
-    conexion.commit()
-    cursor.close()
-    conexion.close()
-
-    return{"Mensaje" : "Se elimino correctamente la bicicleta ",
-           "id_bici" : id_bici}
-
-class BiciNueva(BaseModel):
-    contador_uso: int = 0
-    tipo: str
-    estado: str = "Disponible"
-
 
 @app.post("/bicicletas")
 def crear_bici(bici: BiciNueva):
-    conexion = obtener_conexion()         
+    """Registra una bicicleta nueva en el inventario."""
+    conexion = obtener_conexion()
     cursor = conexion.cursor()
+    try:
+        cursor.execute(
+            "INSERT INTO bicicletas (contador_uso, tipo, estado) "
+            "VALUES (%s, %s, %s) RETURNING id_bici",
+            (bici.contador_uso, bici.tipo, bici.estado)
+        )
+        id_bici = cursor.fetchone()[0]
+        conexion.commit()
+    finally:
+        cursor.close()
+        conexion.close()
 
-    cursor.execute(
-        "INSERT INTO bicicletas (contador_uso,tipo,estado) VALUES (%s, %s,%s) RETURNING id_bici",
-        (bici.contador_uso,bici.tipo,bici.estado)   
-    )
-    id_bici = cursor.fetchone()[0]  
+    return {"mensaje": "Se creó con éxito la nueva bici", "id_bici": id_bici}
 
-    # 3. Guardar los cambios de forma permanente
-    conexion.commit()
 
-    # 4. Cerrar cursor y conexión
-    cursor.close()
-    conexion.close()
+@app.put("/bicicletas/{id_bici}/incrementar-uso")
+def aumentar_contador(id_bici: int):
+    """Suma 1 al contador de uso de una bicicleta."""
+    conexion = obtener_conexion()
+    cursor = conexion.cursor()
+    try:
+        cursor.execute(
+            "UPDATE bicicletas SET contador_uso = contador_uso + 1 "
+            "WHERE id_bici = %s",
+            (id_bici,)
+        )
+        conexion.commit()
+    finally:
+        cursor.close()
+        conexion.close()
 
-    # 5. Regresar una confirmación (puedes incluir el id_renta generado)
-    return {"mensaje": "Se creo con exito la nueva bici: ",
-            "ID Bici: ": id_bici}
+    return {"mensaje": "Contador aumentado con éxito"}
+
+
+@app.delete("/bicicletas/{id_bici}")
+def eliminar_bici(id_bici: int):
+    """Elimina una bicicleta, si no tiene registros relacionados."""
+    conexion = obtener_conexion()
+    cursor = conexion.cursor()
+    try:
+        cursor.execute("DELETE FROM bicicletas WHERE id_bici = %s", (id_bici,))
+        conexion.commit()
+    except psycopg2.Error:
+        conexion.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="No se puede eliminar: la bicicleta tiene registros relacionados"
+        )
+    finally:
+        cursor.close()
+        conexion.close()
+
+    return {"mensaje": "Bicicleta eliminada con éxito"}
+
+
+# ============================================================
+# RUTAS — RENTAS
+# ============================================================
+
+@app.post("/rentas")
+def crear_renta(renta: RentaNueva):
+    """Crea una renta nueva y la asocia a una o varias bicicletas."""
+    conexion = obtener_conexion()
+    cursor = conexion.cursor()
+    try:
+        cursor.execute(
+            "INSERT INTO rentas (id_cliente, duracion_pagada) "
+            "VALUES (%s, %s) RETURNING id_renta",
+            (renta.id_cliente, renta.duracion_pagada)
+        )
+        id_renta = cursor.fetchone()[0]
+
+        for id_bici in renta.bicicletas:
+            cursor.execute(
+                "INSERT INTO cuenta (id_renta, id_bici) VALUES (%s, %s)",
+                (id_renta, id_bici)
+            )
+
+        conexion.commit()
+    except psycopg2.Error:
+        conexion.rollback()
+        raise HTTPException(status_code=400, detail="No se pudo crear la renta")
+    finally:
+        cursor.close()
+        conexion.close()
+
+    return {"mensaje": "Se creó con éxito la nueva renta", "id_renta": id_renta}
