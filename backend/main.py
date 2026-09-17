@@ -12,9 +12,16 @@
 
 from fastapi import FastAPI
 from routers import bicicletas, rentas
+from fastapi.middleware.cors import CORSMiddleware
+
 
 app = FastAPI(title="API de Renta de Bicicletas")
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.include_router(bicicletas.router)
 app.include_router(rentas.router)
 

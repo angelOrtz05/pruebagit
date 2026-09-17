@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Bicicletas</title>
+</head>
+<body>
+    <h1>Consultar bicicleta</h1>
+    <input type="number" id="idBiciConsulta" placeholder="ID de la bici">
+    <button onclick="buscarBici()">Buscar</button>
+    <p id="resultadoConsulta"></p>
+
+    <script>
+        function buscarBici() {
+            const id = document.getElementById("idBiciConsulta").value;
+
+            fetch(`http://127.0.0.1:8000/bicicletas/${id}`)
+                .then(respuesta => respuesta.json())
+                .then(datos => {
+                    document.getElementById("resultadoConsulta").innerText =
+                        `Tipo: ${datos.tipo}, Estado: ${datos.estado}, Contador de uso: ${datos.contador_uso}`;
+                });
+        }
+    </script>
+    <h1>Aumentar contador de uso</h1>
+    <input type="number" id="idBiciContador" placeholder="ID de la bici para aumentar contador">
+    <button onclick="aumentar_contador(id)">Aumentar contador</button>
+    <p id="resultadoContador"></p>
+    <script>
+        function aumentar_contador() {    
+            const id = document.getElementById("idBiciContador").value;
+            fetch(`http://127.0.0.1:8000/bicicletas/${id}/incrementar-uso`, { method: "PUT"})
+                .then(respuesta => respuesta.json())
+                .then(datos => {
+                    document.getElementById("resultadoContador").innerText =
+                        `Contador de uso: ${datos.contador_uso}, Estado: ${datos.estado}`;
+                });
+        }
+    </script>
+    <h1>Crear una nueva renta</h1>
+    <input type="text" id="idsBicis" placeholder="IDs de las bicicletas (separados por comas)">
+    <input type="number" id="idCliente" placeholder="ID del cliente">
+    <input type="text" id="duracion" placeholder="Duracion pagada">
+
+    <button onclick="crearRenta()">Crear renta</button>
+    <p id="resultadoRenta"></p>
+    <script>
+        function crearRenta() {    
+            const bicicletasTexto = document.getElementById("idsBicis").value; // "1,3"
+            const bicicletasArray = bicicletasTexto.split(",").map(Number);     // [1, 3]
+            fetch("http://127.0.0.1:8000/rentas", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    id_cliente: Number(document.getElementById("idCliente").value),
+                    duracion_pagada: document.getElementById("duracion").value,
+                    bicicletas: bicicletasArray
+                })
+            })
+                .then(respuesta => respuesta.json())
+                .then(datos => {
+                    document.getElementById("resultadoRenta").innerText =
+                        `Renta creada: ${datos.id_renta}`;
+                });
+        }
+    </script>
+</body>
+</html>

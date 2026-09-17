@@ -68,15 +68,17 @@ def aumentar_contador(id_bici: int):
     try:
         cursor.execute(
             "UPDATE bicicletas SET contador_uso = contador_uso + 1 "
-            "WHERE id_bici = %s",
+            "WHERE id_bici = %s RETURNING contador_uso, estado",
             (id_bici,)
         )
+        contador_uso, estado = cursor.fetchone()
         conexion.commit()
     finally:
         cursor.close()
         conexion.close()
 
-    return {"mensaje": "Contador aumentado con éxito"}
+    return {"mensaje": "Contador aumentado con éxito",  "contador_uso": contador_uso,
+            "estado": estado}
 
 
 @router.delete("/{id_bici}")
@@ -97,4 +99,5 @@ def eliminar_bici(id_bici: int):
         cursor.close()
         conexion.close()
 
-    return {"mensaje": "Bicicleta eliminada con éxito"}
+    return {"mensaje": "Bicicleta eliminada con éxito", "id_bici": id_bici}
+    

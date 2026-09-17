@@ -112,7 +112,7 @@ RETURNS TRIGGER AS $$
 BEGIN
     IF NEW.duracion_real IS NOT NULL THEN
         UPDATE bicicletas
-        SET estado = 'Disponible'
+        SET estado = 'Disponible', contador_uso = contador_uso + 1
         WHERE id_bici IN (
             SELECT id_bici FROM cuenta WHERE id_renta = NEW.id_renta
         );
