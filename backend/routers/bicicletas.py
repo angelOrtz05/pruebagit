@@ -37,6 +37,28 @@ def obtener_bici(id_bici: int):
         "estado": resultado[3]
     }
 
+@router.get("")
+def listar_bicicletas():
+    conexion = obtener_conexion()
+    cursor = conexion.cursor()
+    try:
+        cursor.execute("SELECT id_bici, tipo, contador_uso, estado FROM bicicletas ORDER BY id_bici")
+        resultados = cursor.fetchall()
+    finally:
+        cursor.close()
+        conexion.close()
+
+    bicicletas = []
+    for fila in resultados:
+        bicicletas.append({
+            "id_bici": fila[0],
+            "tipo": fila[1],
+            "contador_uso": fila[2],
+            "estado": fila[3]
+        })
+
+    return bicicletas
+
 
 
 
@@ -60,25 +82,6 @@ def crear_bici(bici: BiciNueva):
     return {"mensaje": "Se creó con éxito la nueva bici", "id_bici": id_bici}
 
 
-@router.put("/{id_bici}/incrementar-uso")
-def aumentar_contador(id_bici: int):
-    """Suma 1 al contador de uso de una bicicleta."""
-    conexion = obtener_conexion()
-    cursor = conexion.cursor()
-    try:
-        cursor.execute(
-            "UPDATE bicicletas SET contador_uso = contador_uso + 1 "
-            "WHERE id_bici = %s RETURNING contador_uso, estado",
-            (id_bici,)
-        )
-        contador_uso, estado = cursor.fetchone()
-        conexion.commit()
-    finally:
-        cursor.close()
-        conexion.close()
-
-    return {"mensaje": "Contador aumentado con éxito",  "contador_uso": contador_uso,
-            "estado": estado}
 
 
 @router.delete("/{id_bici}")

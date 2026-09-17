@@ -21,21 +21,24 @@
                 });
         }
     </script>
-    <h1>Aumentar contador de uso</h1>
-    <input type="number" id="idBiciContador" placeholder="ID de la bici para aumentar contador">
-    <button onclick="aumentar_contador(id)">Aumentar contador</button>
-    <p id="resultadoContador"></p>
+    <h1>Consultar lista de bicicletas</h1>
+    <button onclick="listarBicicletas()">Listar</button>
+    <p id="resultadoLista"></p>
     <script>
-        function aumentar_contador() {    
-            const id = document.getElementById("idBiciContador").value;
-            fetch(`http://127.0.0.1:8000/bicicletas/${id}/incrementar-uso`, { method: "PUT"})
+        function listarBicicletas() {
+            fetch(`http://127.0.0.1:8000/bicicletas`)
                 .then(respuesta => respuesta.json())
                 .then(datos => {
-                    document.getElementById("resultadoContador").innerText =
-                        `Contador de uso: ${datos.contador_uso}, Estado: ${datos.estado}`;
+                    let texto = "";
+                    for (const bici of datos) {
+                        texto += `${bici.id_bici} - ${bici.tipo} - ${bici.estado} - Usos: ${bici.contador_uso}\n`;
+                    }
+                    document.getElementById("resultadoLista").innerText = texto;
                 });
-        }
+        }  
     </script>
+    
+    
     <h1>Crear una nueva renta</h1>
     <input type="text" id="idsBicis" placeholder="IDs de las bicicletas (separados por comas)">
     <input type="number" id="idCliente" placeholder="ID del cliente">
