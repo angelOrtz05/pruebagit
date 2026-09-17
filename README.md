@@ -54,7 +54,7 @@ No es un producto terminado — es un ejercicio de práctica end-to-end.
 ## Estructura del proyecto
 
 ```
-DB_Adriana/
+Proyecto_Bicicletas/
 ├── sql/
 │   └── practica_bicicletas.sql   # tablas, triggers, datos y consultas de referencia
 ├── backend/
